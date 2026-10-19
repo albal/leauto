@@ -1,0 +1,3 @@
+# No backend, ever
+
+leauto runs entirely in the browser. Extracting Opportunity facts and composing Drafts both happen in the extension, and any future LLM call goes directly from the Candidate's browser to the provider they chose, using their own API key. We considered a hosted proxy, which would make onboarding smoother, simplify key management and allow usage-based billing, and rejected it. The extension reads private recruiter messages, so the strongest privacy guarantee we can offer is that the author never receives them. That guarantee, together with the MIT-licensed open source, is the product's main trust argument. Adding a backend later would break it for every existing user.
