@@ -38,6 +38,10 @@ main {
   color: var(--muted);
 }
 
+a {
+  color: var(--accent);
+}
+
 fieldset {
   background: var(--surface);
   border: 1px solid var(--border);

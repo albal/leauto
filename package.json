@@ -16,7 +16,8 @@
     "test:e2e": "wxt build && playwright test",
     "lint:fixtures": "node scripts/lint-fixtures.mjs",
     "check": "npm run typecheck && npm run lint:fixtures && npm test && npm run test:e2e",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "icons": "node scripts/render-icons.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

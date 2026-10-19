@@ -6,6 +6,8 @@ export default defineBackground(() => {
     if (reason === 'install') browser.runtime.openOptionsPage();
   });
 
+  browser.action.onClicked.addListener(() => browser.runtime.openOptionsPage());
+
   // Content scripts can't open the options page themselves.
   browser.runtime.onMessage.addListener((message: BackgroundMessage) => {
     if (message.type === 'open-options') browser.runtime.openOptionsPage();

@@ -19,6 +19,13 @@ The workflow fails if the tag doesn't match `package.json`.
 
 To check store credentials without uploading anything, run **Release** manually from the Actions tab with **dry-run** ticked (the default). A manual run never creates a GitHub Release.
 
+## Listing assets
+
+- **Privacy policy URL** (both stores): <https://github.com/albal/linkedauto/blob/main/PRIVACY.md>
+- **Extension icons**: `public/icon/{16,32,48,128}.png`, rendered from `assets/icon.svg` with `npm run icons`. Re-run that after changing the SVG, and commit the PNGs.
+- **Edge store logo (300×300)**: `assets/store/edge-logo-300.png`, rendered by the same script.
+- **Screenshots** (1280×800): still to do. Use invented messages, never real conversations.
+
 ## One-time store setup
 
 Neither store's API can create a new listing, so the first version of each must be uploaded by hand. After that, the workflow handles updates.

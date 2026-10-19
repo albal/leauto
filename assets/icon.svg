@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- leauto: a reply bubble with a tick, on a teal tile. Deliberately not LinkedIn blue. -->
+  <rect width="128" height="128" rx="28" fill="#0f766e"/>
+  <path d="M30 34h68a10 10 0 0 1 10 10v36a10 10 0 0 1-10 10H58l-20 16v-16h-8a10 10 0 0 1-10-10V44a10 10 0 0 1 10-10z" fill="#fff"/>
+  <path d="M46 62l12 12 24-24" fill="none" stroke="#0f766e" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
