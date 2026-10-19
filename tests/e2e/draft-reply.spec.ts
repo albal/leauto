@@ -81,8 +81,41 @@ test('the Draft kind menu forces a Decline, a Clarification or an Expression of 
   await expect(bar(page).getByRole('menu')).toBeHidden();
 
   await force('Clarify');
+  await bar(page).getByRole('button', { name: 'Replace' }).click();
   await expect(composeBox(page)).toContainText('Is the role fully remote, hybrid or on-site?');
 
   await force('Decline');
+  await bar(page).getByRole('button', { name: 'Replace' }).click();
   await expect(composeBox(page)).toContainText("Unfortunately this one isn't a fit");
+});
+
+test('an empty compose box is filled without asking', async ({ seedSettings, openThread }) => {
+  await seedSettings(CONFIGURED);
+  const page = await openThread('thread-inside-ir35');
+
+  await bar(page).getByRole('button', { name: 'Draft reply' }).click();
+
+  await expect(composeBox(page)).toContainText("it's Inside IR35");
+  await expect(bar(page)).not.toContainText('Overwrite your text?');
+});
+
+test('existing text is replaced only after the Candidate confirms', async ({ seedSettings, openThread }) => {
+  await seedSettings(CONFIGURED);
+  const page = await openThread('thread-inside-ir35');
+  let dialogs = 0;
+  page.on('dialog', () => dialogs++);
+  await composeBox(page).click();
+  await page.keyboard.type('My own half-written reply');
+
+  await bar(page).getByRole('button', { name: 'Draft reply' }).click();
+  await expect(bar(page)).toContainText('Overwrite your text?');
+  await bar(page).getByRole('button', { name: 'Cancel' }).click();
+  await expect(composeBox(page)).toHaveText('My own half-written reply');
+  await expect(bar(page)).not.toContainText('Overwrite your text?');
+
+  await bar(page).getByRole('button', { name: 'Draft reply' }).click();
+  await bar(page).getByRole('button', { name: 'Replace' }).click();
+  await expect(composeBox(page)).toContainText("it's Inside IR35");
+  await expect(composeBox(page)).not.toContainText('My own half-written reply');
+  expect(dialogs).toBe(0);
 });

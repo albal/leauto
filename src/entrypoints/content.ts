@@ -2,7 +2,14 @@ import { browser } from 'wxt/browser';
 import { replyTo } from '../engine/replyEngine';
 import type { Notice, ReplyOptions } from '../engine/types';
 import type { BackgroundMessage } from '../messages';
-import { findComposeBox, findComposeForm, isMessagingPage, readThread, writeDraft } from '../page/adapter';
+import {
+  composeHasText,
+  findComposeBox,
+  findComposeForm,
+  isMessagingPage,
+  readThread,
+  writeDraft,
+} from '../page/adapter';
 import { loadSettings } from '../settings/store';
 import { BAR_HOST_ID, createButtonBar, type ButtonBar } from '../ui/buttonBar';
 
@@ -39,7 +46,16 @@ async function draftReply(bar: ButtonBar, options: ReplyOptions = {}): Promise<v
     return;
   }
   const box = findComposeBox(document);
-  if (box) writeDraft(box, outcome.text);
+  if (!box) return;
+  if (!composeHasText(box)) {
+    writeDraft(box, outcome.text);
+    return;
+  }
+  // Never lose the Candidate's own words without asking, and never with a blocking browser dialog.
+  bar.showNotice('Overwrite your text?', [
+    { label: 'Replace', onClick: () => writeDraft(box, outcome.text) },
+    { label: 'Cancel', onClick: () => {} },
+  ]);
 }
 
 function showNotice(bar: ButtonBar, notice: Notice): void {

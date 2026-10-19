@@ -74,5 +74,6 @@ test('a saved template override shapes the Draft, and Reset restores the built-i
   await expect(options.getByRole('status')).toHaveText('Saved.');
 
   await bar(thread).getByRole('button', { name: 'Draft reply' }).click();
+  await bar(thread).getByRole('button', { name: 'Replace' }).click();
   await expect(composeBox(thread)).toContainText('Hello Morgan,');
 });
