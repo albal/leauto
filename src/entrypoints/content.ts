@@ -9,6 +9,7 @@ import {
   isMessagingPage,
   readThread,
   writeDraft,
+  type RequiredElement,
 } from '../page/adapter';
 import { loadSettings } from '../settings/store';
 import { BAR_HOST_ID, createButtonBar, type ButtonBar } from '../ui/buttonBar';
@@ -39,7 +40,13 @@ export default defineContentScript({
 async function draftReply(bar: ButtonBar, options: ReplyOptions = {}): Promise<void> {
   bar.clearNotice();
   const read = readThread(document);
-  if (!read.ok) return;
+  if (!read.ok) {
+    // Never fail silently, and never write a half-built Draft.
+    bar.showNotice("leauto couldn't read this conversation; LinkedIn may have changed its layout.", [
+      { label: 'Report the problem', href: layoutIssueUrl(read.missing) },
+    ]);
+    return;
+  }
   const outcome = replyTo(read.snapshot, await loadSettings(), options);
   if (outcome.type === 'notice') {
     showNotice(bar, outcome.notice);
@@ -74,6 +81,21 @@ function showNotice(bar: ButtonBar, notice: Notice): void {
       bar.showNotice("You've already replied. There's nothing new to answer.");
       break;
   }
+}
+
+const ISSUES_URL = 'https://github.com/albal/linkedauto/issues/new';
+
+/** A pre-filled bug report naming only the version and the missing elements: no page content. */
+function layoutIssueUrl(missing: RequiredElement[]): string {
+  const version = browser.runtime.getManifest().version;
+  const body = [
+    "leauto couldn't read a LinkedIn Thread.",
+    '',
+    `- Extension version: ${version}`,
+    `- Missing elements: ${missing.join(', ')}`,
+  ].join('\n');
+  const params = new URLSearchParams({ title: `Layout changed: missing ${missing.join(', ')}`, body });
+  return `${ISSUES_URL}?${params}`;
 }
 
 function sendToBackground(message: BackgroundMessage): void {

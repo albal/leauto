@@ -119,3 +119,31 @@ test('existing text is replaced only after the Candidate confirms', async ({ see
   await expect(composeBox(page)).not.toContainText('My own half-written reply');
   expect(dialogs).toBe(0);
 });
+
+for (const [fixture, missing] of [
+  ['thread-missing-messages', 'messages'],
+  ['thread-missing-name', 'recruiterName'],
+  ['thread-missing-compose-box', 'composeBox'],
+] as const) {
+  test(`a layout change (${missing} missing) shows a notice with a content-free bug report link`, async ({
+    seedSettings,
+    openThread,
+  }) => {
+    await seedSettings(CONFIGURED);
+    const page = await openThread(fixture);
+
+    await bar(page).getByRole('button', { name: 'Draft reply' }).click();
+
+    await expect(bar(page)).toContainText("leauto couldn't read this conversation; LinkedIn may have changed its layout.");
+    const href = await bar(page).getByRole('link', { name: 'Report the problem' }).getAttribute('href');
+    const report = new URL(href!);
+    expect(report.origin + report.pathname).toBe('https://github.com/albal/linkedauto/issues/new');
+    const body = report.searchParams.get('body')!;
+    expect(body).toContain('- Extension version: 0.1.0');
+    expect(body).toContain(`- Missing elements: ${missing}`);
+    for (const pageContent of ['Morgan', 'Sample', 'IR35', 'government', 'linkedin.com/messaging']) {
+      expect(href).not.toContain(pageContent);
+    }
+    if (missing !== 'composeBox') await expect(composeBox(page)).toHaveText('');
+  });
+}

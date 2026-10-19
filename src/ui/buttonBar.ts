@@ -26,10 +26,7 @@ const STYLES = `
 
 export const BAR_HOST_ID = 'leauto-button-bar';
 
-export interface NoticeAction {
-  label: string;
-  onClick(): void;
-}
+export type NoticeAction = { label: string; onClick(): void } | { label: string; href: string };
 
 export interface ButtonBar {
   host: HTMLElement;
@@ -96,12 +93,20 @@ export function createButtonBar(handlers: ButtonBarHandlers): ButtonBar {
     showNotice(message, actions = []) {
       const text = document.createElement('p');
       text.textContent = message;
-      const buttons = actions.map(({ label, onClick }) => {
+      const buttons = actions.map((action) => {
+        if ('href' in action) {
+          const link = document.createElement('a');
+          link.textContent = action.label;
+          link.href = action.href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          return link;
+        }
         const button = document.createElement('button');
-        button.textContent = label;
+        button.textContent = action.label;
         button.addEventListener('click', () => {
           clearNotice();
-          onClick();
+          action.onClick();
         });
         return button;
       });
