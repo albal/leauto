@@ -79,6 +79,11 @@ export function createButtonBar(handlers: ButtonBarHandlers): ButtonBar {
     setMenuOpen(false);
     handlers.onForce(kind);
   });
+  // Any press outside the toggle and menu closes it; composedPath sees into the shadow root.
+  const kinds = root.querySelector('.kinds')!;
+  document.addEventListener('pointerdown', (event) => {
+    if (!menu.hidden && !event.composedPath().includes(kinds)) setMenuOpen(false);
+  });
   menu.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       setMenuOpen(false);

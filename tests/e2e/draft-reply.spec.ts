@@ -147,3 +147,23 @@ for (const [fixture, missing] of [
     if (missing !== 'composeBox') await expect(composeBox(page)).toHaveText('');
   });
 }
+
+test('the Draft kind menu closes when the Candidate clicks anywhere outside it', async ({ openThread }) => {
+  const page = await openThread('thread-inside-ir35');
+  const toggle = bar(page).getByRole('button', { name: 'Choose Draft kind' });
+  const menu = bar(page).getByRole('menu');
+
+  await toggle.click();
+  await expect(menu).toBeVisible();
+  await page.locator('.msg-title-bar').click();
+  await expect(menu).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+  await toggle.click();
+  await composeBox(page).click();
+  await expect(menu).toBeHidden();
+
+  await toggle.click();
+  await toggle.click();
+  await expect(menu).toBeHidden();
+});
