@@ -2,7 +2,7 @@
   "name": "leauto",
   "description": "Triage recruiter pitches in LinkedIn messages and draft replies for you to review and send.",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "scripts": {
