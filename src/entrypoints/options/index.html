@@ -89,6 +89,33 @@
           </label>
         </fieldset>
 
+        <fieldset>
+          <legend>Templates</legend>
+          <p class="hint">
+            Leave a template empty to use the built-in one for your tone, shown faintly in each box.
+          </p>
+          <div class="template" data-template="decline">
+            <label>Decline template <textarea name="template-decline" rows="9"></textarea></label>
+            <button type="button" class="secondary" data-reset="decline">Reset to built-in</button>
+          </div>
+          <div class="template" data-template="clarification">
+            <label>Clarification template <textarea name="template-clarification" rows="9"></textarea></label>
+            <button type="button" class="secondary" data-reset="clarification">Reset to built-in</button>
+          </div>
+          <div class="template" data-template="interest">
+            <label>Expression of Interest template <textarea name="template-interest" rows="9"></textarea></label>
+            <button type="button" class="secondary" data-reset="interest">Reset to built-in</button>
+          </div>
+          <div class="template" data-template="rateQuote">
+            <label>Rate Quote template <textarea name="template-rateQuote" rows="2"></textarea></label>
+            <button type="button" class="secondary" data-reset="rateQuote">Reset to built-in</button>
+          </div>
+          <details>
+            <summary>Placeholders</summary>
+            <dl id="placeholders"></dl>
+          </details>
+        </fieldset>
+
         <div class="actions">
           <button type="submit">Save</button>
           <p id="status" role="status"></p>

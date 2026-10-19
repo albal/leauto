@@ -1,40 +1,7 @@
-import type { Currency, EngagementType, Settings, WorkingPattern } from '../settings/settings';
+import type { Currency, EngagementType, Settings, TemplateName, WorkingPattern } from '../settings/settings';
 import type { Mismatch, Question } from './evaluation';
+import { BUILT_IN_TEMPLATES } from './templates';
 import type { DraftKind } from './types';
-
-const TEMPLATES: Record<DraftKind | 'rateQuote', string> = {
-  decline: `Hi {recruiterFirstName},
-
-Thanks for reaching out with this opportunity. {criteria} Unfortunately this one isn't a fit:
-{mismatches}
-
-If anything matching comes up in the future, please feel free to share it.
-
-Best regards,
-{signOff}`,
-  clarification: `Hi {recruiterFirstName},
-
-Thanks for reaching out. Before discussing next steps, could you please clarify a few details:
-{questions}
-
-{rateQuote}
-
-Once confirmed, I can let you know if this aligns with my current availability.
-
-Best regards,
-{signOff}`,
-  interest: `Hi {recruiterFirstName},
-
-Thanks for reaching out. This sounds like a good fit for what I'm looking for.
-
-{rateQuote}
-
-Could you send over the full job specification, or suggest a time for a call?
-
-Best regards,
-{signOff}`,
-  rateQuote: `In answer to your question about rates: my day rate is {preferredRate}.`,
-};
 
 const ENGAGEMENT_LABELS: Record<EngagementType, string> = {
   Permanent: 'permanent',
@@ -66,12 +33,17 @@ export function compose(kind: DraftKind, parts: DraftParts, settings: Settings):
     signOff: settings.signOff.trim(),
   };
   // A Decline never quotes a rate.
-  values.rateQuote = parts.quoteRate && kind !== 'decline' ? fill(TEMPLATES.rateQuote, values) : '';
-  return fill(TEMPLATES[kind], values).replace(/\n{3,}/g, '\n\n').trim();
+  values.rateQuote = parts.quoteRate && kind !== 'decline' ? fill(template('rateQuote', settings), values) : '';
+  return fill(template(kind, settings), values).replace(/\n{3,}/g, '\n\n').trim();
 }
 
-function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (placeholder, name: string) => values[name] ?? placeholder);
+/** The Candidate's override if they wrote one, otherwise the built-in template for their tone. */
+function template(name: TemplateName, settings: Settings): string {
+  return settings.templates[name]?.trim() || BUILT_IN_TEMPLATES[settings.tone][name];
+}
+
+function fill(text: string, values: Record<string, string>): string {
+  return text.replace(/\{(\w+)\}/g, (placeholder, name: string) => values[name] ?? placeholder);
 }
 
 function dayRate(amount: number, currency: Currency): string {

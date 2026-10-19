@@ -504,3 +504,73 @@ describe('Thread', () => {
     expect(outcome.text).toContain('1. Could you share more details about the role?');
   });
 });
+
+describe('tones and templates', () => {
+  const withRates: Settings = {
+    ...contractor,
+    rates: { currency: 'GBP', preferredDayRate: 650, minimumDayRate: null, hoursPerDay: 7.5 },
+  };
+  const match = 'A 6 month contract, Outside IR35. What is your day rate?';
+
+  it.each([
+    ['direct', /^Hello Jordan,[\s\S]*matches my requirements[\s\S]*Regards,\nSam Taylor$/],
+    ['warm', /^Hi Jordan,[\s\S]*good fit for what I'm looking for[\s\S]*Best regards,\nSam Taylor$/],
+    ['brief', /^Hi Jordan,\n\nThanks, this looks like a fit\.[\s\S]*\n\nSam Taylor$/],
+  ] as const)('writes in the %s tone', (tone, expected) => {
+    expect(draft(replyTo(thread(match), { ...withRates, tone })).text).toMatch(expected);
+  });
+
+  it.each(['direct', 'warm', 'brief'] as const)('includes every part in the %s tone', (tone) => {
+    const settings: Settings = { ...withRates, tone, workingPatterns: ['Remote'] };
+    const decline = draft(replyTo(thread('A 6 month contract, inside IR35, office-based.'), settings)).text;
+    const clarification = draft(replyTo(thread('A 6 month contract. What is your day rate?'), settings)).text;
+
+    expect(decline).toContain("- it's Inside IR35\n- it's an on-site role");
+    expect(decline).toContain('Outside IR35 contract roles that are fully remote');
+    expect(clarification).toContain('1. What is the IR35 determination');
+    expect(clarification).toContain('£650/day');
+    expect(clarification).not.toMatch(/\n{3,}/);
+  });
+
+  it("uses the Candidate's override for a Draft kind, with placeholders", () => {
+    const settings: Settings = {
+      ...withRates,
+      workingPatterns: ['Remote'],
+      templates: { decline: 'Hey {recruiterFirstName}, no thanks:\n{mismatches}\n{criteria}\n-- {signOff}' },
+    };
+    const outcome = draft(replyTo(thread('A 6 month contract, inside IR35.'), settings));
+
+    expect(outcome.text).toBe(
+      "Hey Jordan, no thanks:\n- it's Inside IR35\nI'm currently only considering Outside IR35 contract roles that are fully remote.\n-- Sam Taylor",
+    );
+  });
+
+  it("uses the Candidate's Rate Quote override", () => {
+    const settings: Settings = { ...withRates, templates: { rateQuote: 'I charge {preferredRate}.' } };
+
+    expect(draft(replyTo(thread(match), settings)).text).toContain('I charge £650/day.');
+  });
+
+  it('fills {preferredRate} and {questions} in an override', () => {
+    const settings: Settings = {
+      ...withRates,
+      templates: { clarification: 'Q:\n{questions}\nRate: {preferredRate}' },
+    };
+
+    expect(draft(replyTo(thread('A 6 month contract.'), settings)).text).toBe(
+      'Q:\n1. What is the IR35 determination (Inside or Outside)?\nRate: £650/day',
+    );
+  });
+
+  it('leaves unknown placeholders as written', () => {
+    const settings: Settings = { ...withRates, templates: { interest: 'Hi {recruiterFirstName}, {nonsense}' } };
+
+    expect(draft(replyTo(thread('A 6 month contract, Outside IR35.'), settings)).text).toBe('Hi Jordan, {nonsense}');
+  });
+
+  it('falls back to the built-in template when an override is blank', () => {
+    const settings: Settings = { ...withRates, templates: { interest: '   ' } };
+
+    expect(draft(replyTo(thread('A 6 month contract, Outside IR35.'), settings)).text).toContain('full job specification');
+  });
+});

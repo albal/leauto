@@ -1,8 +1,10 @@
+import { BUILT_IN_TEMPLATES, PLACEHOLDERS } from '../../engine/templates';
 import type {
   Currency,
   EngagementType,
   IR35Status,
   Settings,
+  TemplateName,
   Tone,
   WorkingPattern,
 } from '../../settings/settings';
@@ -10,6 +12,7 @@ import { loadSettings, saveSettings } from '../../settings/store';
 
 const form = document.querySelector<HTMLFormElement>('#settings')!;
 const status = document.querySelector<HTMLElement>('#status')!;
+const TEMPLATE_NAMES: TemplateName[] = ['decline', 'clarification', 'interest', 'rateQuote'];
 
 function field<T extends HTMLElement = HTMLInputElement>(name: string): T {
   return form.elements.namedItem(name) as unknown as T;
@@ -47,6 +50,27 @@ function fill(settings: Settings): void {
   field('hoursPerDay').value = settings.rates.hoursPerDay.toString();
   field('signOff').value = settings.signOff;
   field<HTMLSelectElement>('tone').value = settings.tone;
+  for (const name of TEMPLATE_NAMES) templateField(name).value = settings.templates[name] ?? '';
+  showBuiltInTemplates();
+}
+
+function templateField(name: TemplateName): HTMLTextAreaElement {
+  return field<HTMLTextAreaElement>(`template-${name}`);
+}
+
+/** Shows the built-in template for the selected tone behind each empty box. */
+function showBuiltInTemplates(): void {
+  const tone = field<HTMLSelectElement>('tone').value as Tone;
+  for (const name of TEMPLATE_NAMES) templateField(name).placeholder = BUILT_IN_TEMPLATES[tone][name];
+}
+
+function readTemplates(): Settings['templates'] {
+  const templates: Settings['templates'] = {};
+  for (const name of TEMPLATE_NAMES) {
+    const text = templateField(name).value;
+    if (text.trim()) templates[name] = text;
+  }
+  return templates;
 }
 
 function read(previous: Settings): Settings {
@@ -71,6 +95,7 @@ function read(previous: Settings): Settings {
     },
     signOff: field('signOff').value.trim(),
     tone: field<HTMLSelectElement>('tone').value as Tone,
+    templates: readTemplates(),
   };
 }
 
@@ -87,6 +112,22 @@ function showStatus(message: string, isError = false): void {
   status.textContent = message;
   status.classList.toggle('error', isError);
 }
+
+document.querySelector('#placeholders')!.append(
+  ...Object.entries(PLACEHOLDERS).flatMap(([name, meaning]) => {
+    const term = document.createElement('dt');
+    term.textContent = `{${name}}`;
+    const description = document.createElement('dd');
+    description.textContent = meaning;
+    return [term, description];
+  }),
+);
+
+field<HTMLSelectElement>('tone').addEventListener('change', showBuiltInTemplates);
+form.addEventListener('click', (event) => {
+  const name = (event.target as HTMLElement).dataset.reset as TemplateName | undefined;
+  if (name) templateField(name).value = '';
+});
 
 const loaded = loadSettings().then((settings) => {
   fill(settings);

@@ -1,4 +1,4 @@
-import { bar, composeBox, expect, test } from './extension';
+import { bar, composeBox, CONFIGURED, expect, test } from './extension';
 
 test('first run: options open on install, Draft reply waits for setup, then uses saved settings', async ({
   context,
@@ -48,4 +48,31 @@ test('saved settings are shown when the options page reopens', async ({ optionsP
   await expect(options.getByLabel('Permanent')).toBeChecked();
   await expect(options.getByLabel('Cities')).toHaveValue('London\nManchester');
   await expect(options.getByLabel('Sign-off name')).toHaveValue('Robin Candidate');
+});
+
+test('a saved template override shapes the Draft, and Reset restores the built-in one', async ({
+  optionsPage: options,
+  seedSettings,
+  openThread,
+}) => {
+  await seedSettings(CONFIGURED);
+  await options.reload();
+  await options.getByLabel('Decline template').fill('Hey {recruiterFirstName}, not for me:\n{mismatches}\n{signOff}');
+  await options.getByRole('button', { name: 'Save' }).click();
+  await expect(options.getByRole('status')).toHaveText('Saved.');
+
+  const thread = await openThread('thread-inside-ir35');
+  await bar(thread).getByRole('button', { name: 'Draft reply' }).click();
+  await expect(composeBox(thread)).toContainText('Hey Morgan, not for me:');
+  await expect(composeBox(thread)).toContainText("it's Inside IR35");
+
+  await options.getByRole('button', { name: 'Reset to built-in' }).first().click();
+  await expect(options.getByLabel('Decline template')).toHaveValue('');
+  await options.getByLabel('Tone').selectOption('direct');
+  await expect(options.getByLabel('Decline template')).toHaveAttribute('placeholder', /^Hello \{recruiterFirstName\}/);
+  await options.getByRole('button', { name: 'Save' }).click();
+  await expect(options.getByRole('status')).toHaveText('Saved.');
+
+  await bar(thread).getByRole('button', { name: 'Draft reply' }).click();
+  await expect(composeBox(thread)).toContainText('Hello Morgan,');
 });
