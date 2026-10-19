@@ -15,3 +15,5 @@ npm run check        # typecheck, fixture lint, unit tests, end-to-end tests
 
 - `npm test`: Vitest unit tests of the Reply Engine (`(ThreadSnapshot, Settings) → Outcome`)
 - `npm run test:e2e`: builds the extension and runs Playwright against sanitised LinkedIn fixtures (see [docs/fixtures.md](docs/fixtures.md))
+
+Releases and store publishing are covered in [docs/publishing.md](docs/publishing.md).

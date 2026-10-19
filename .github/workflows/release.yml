@@ -1,0 +1,94 @@
+name: Release
+
+# Push a tag matching package.json's version (e.g. v0.2.0) to build, release and publish.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Check store authentication without uploading or submitting
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check the tag matches package.json
+        if: github.ref_type == 'tag'
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck, fixture lint, unit and end-to-end tests
+        run: npm run check
+
+      - name: Zip Chrome and Edge builds
+        run: npm run zip
+
+      - name: Find zips
+        id: zips
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "chrome=.output/leauto-$version-chrome.zip" >> "$GITHUB_OUTPUT"
+          echo "edge=.output/leauto-$version-edge.zip" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-zips
+          path: .output/*.zip
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "${{ steps.zips.outputs.chrome }}" "${{ steps.zips.outputs.edge }}" \
+            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+
+      # Each store is skipped until its secrets are configured; see docs/publishing.md.
+      - name: Submit to the Chrome Web Store and Edge Add-ons
+        env:
+          CHROME_API_VERSION: v2
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+        run: |
+          args=()
+          [ -n "$CHROME_EXTENSION_ID" ] && args+=(--chrome-zip "${{ steps.zips.outputs.chrome }}")
+          [ -n "$EDGE_PRODUCT_ID" ] && args+=(--edge-zip "${{ steps.zips.outputs.edge }}")
+          if [ ${#args[@]} -eq 0 ]; then
+            echo "::notice::No store secrets configured; skipping store submission."
+            exit 0
+          fi
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          npx wxt submit "${args[@]}"
