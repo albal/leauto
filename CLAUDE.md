@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues on albal/linkedauto via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues on albal/leauto via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

@@ -140,7 +140,7 @@ for (const [fixture, missing] of [
     await expect(bar(page)).toContainText("leauto couldn't read this conversation; LinkedIn may have changed its layout.");
     const href = await bar(page).getByRole('link', { name: 'Report the problem' }).getAttribute('href');
     const report = new URL(href!);
-    expect(report.origin + report.pathname).toBe('https://github.com/albal/linkedauto/issues/new');
+    expect(report.origin + report.pathname).toBe('https://github.com/albal/leauto/issues/new');
     const body = report.searchParams.get('body')!;
     expect(body).toContain(`- Extension version: ${version}`);
     expect(body).toContain(`- Missing elements: ${missing}`);

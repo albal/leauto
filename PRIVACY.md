@@ -30,4 +30,4 @@ The only link leauto offers to an outside site is the "Report the problem" link 
 
 ## Changes and contact
 
-leauto is open source under the MIT licence: <https://github.com/albal/linkedauto>. Any change to this policy will be made in that repository, with the date above updated. Questions can be raised as an issue at <https://github.com/albal/linkedauto/issues>.
+leauto is open source under the MIT licence: <https://github.com/albal/leauto>. Any change to this policy will be made in that repository, with the date above updated. Questions can be raised as an issue at <https://github.com/albal/leauto/issues>.

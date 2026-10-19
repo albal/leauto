@@ -83,7 +83,7 @@ function showNotice(bar: ButtonBar, notice: Notice): void {
   }
 }
 
-const ISSUES_URL = 'https://github.com/albal/linkedauto/issues/new';
+const ISSUES_URL = 'https://github.com/albal/leauto/issues/new';
 
 /** A pre-filled bug report naming only the version and the missing elements: no page content. */
 function layoutIssueUrl(missing: RequiredElement[]): string {

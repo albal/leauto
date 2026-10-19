@@ -17,6 +17,6 @@ test('the manifest carries the store icons, a toolbar action and only the expect
 test('the options page links to the privacy policy', async ({ optionsPage }) => {
   await expect(optionsPage.getByRole('link', { name: 'Privacy policy' })).toHaveAttribute(
     'href',
-    'https://github.com/albal/linkedauto/blob/main/PRIVACY.md',
+    'https://github.com/albal/leauto/blob/main/PRIVACY.md',
   );
 });
