@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { bar, composeBox, CONFIGURED, expect, test } from './extension';
+
+const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
 
 test('Draft reply puts a Clarification in the compose box and enables Send', async ({
   seedSettings,
@@ -139,7 +142,7 @@ for (const [fixture, missing] of [
     const report = new URL(href!);
     expect(report.origin + report.pathname).toBe('https://github.com/albal/linkedauto/issues/new');
     const body = report.searchParams.get('body')!;
-    expect(body).toContain('- Extension version: 0.1.0');
+    expect(body).toContain(`- Extension version: ${version}`);
     expect(body).toContain(`- Missing elements: ${missing}`);
     for (const pageContent of ['Morgan', 'Sample', 'IR35', 'government', 'linkedin.com/messaging']) {
       expect(href).not.toContain(pageContent);
