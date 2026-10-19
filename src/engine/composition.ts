@@ -1,4 +1,4 @@
-import type { EngagementType, Settings } from '../settings/settings';
+import type { EngagementType, Settings, WorkingPattern } from '../settings/settings';
 import type { Mismatch, Question } from './evaluation';
 import type { DraftKind } from './types';
 
@@ -37,6 +37,12 @@ const ENGAGEMENT_LABELS: Record<EngagementType, string> = {
   Contract: 'contract',
 };
 
+const PATTERN_LABELS: Record<WorkingPattern, string> = {
+  Remote: 'fully remote',
+  Hybrid: 'hybrid',
+  'On-site': 'on-site',
+};
+
 export interface DraftParts {
   recruiterName: string | null;
   mismatches: Mismatch[];
@@ -62,14 +68,29 @@ function list(items: string[], conjunction: 'and' | 'or'): string {
   return `${items.slice(0, -1).join(', ')} ${conjunction} ${items.at(-1)}`;
 }
 
-/** "I'm currently only considering Outside IR35 contract or permanent roles." */
+/** "I'm currently only considering Outside IR35 contract roles that are fully remote." */
 function criteriaSentence(settings: Settings): string {
   const ir35 =
     settings.ir35.enabled && settings.ir35.accepted.length === 1 ? `${settings.ir35.accepted[0]} IR35 ` : '';
   const types = settings.engagementTypes.map((t) =>
     t === 'Contract' ? `${ir35}${ENGAGEMENT_LABELS[t]}` : ENGAGEMENT_LABELS[t],
   );
-  return `I'm currently only considering ${list(types, 'or')} roles.`;
+  const pattern = patternCriterion(settings);
+  return `I'm currently only considering ${list(types, 'or')} roles${pattern ? ` that are ${pattern}` : ''}.`;
+}
+
+/** "remote or hybrid (up to 2 office days a week in London or Leeds)", or '' when anything goes. */
+function patternCriterion(settings: Settings): string {
+  const { workingPatterns } = settings;
+  const { maxOfficeDaysPerWeek: maxDays, cities } = settings.hybrid;
+  const limits: string[] = [];
+  if (workingPatterns.includes('Hybrid') && maxDays !== null) {
+    limits.push(`up to ${maxDays} office ${maxDays === 1 ? 'day' : 'days'} a week`);
+  }
+  if (workingPatterns.some((p) => p !== 'Remote') && cities.length) limits.push(`in ${list(cities, 'or')}`);
+  if (workingPatterns.length === 3 && !limits.length) return '';
+  const labels = workingPatterns.map((p) => (p === 'Remote' && workingPatterns.length > 1 ? 'remote' : PATTERN_LABELS[p]));
+  return `${list(labels, 'or')}${limits.length ? ` (${limits.join(' ')})` : ''}`;
 }
 
 function describeMismatch(mismatch: Mismatch): string {
@@ -78,6 +99,12 @@ function describeMismatch(mismatch: Mismatch): string {
       return `it's a ${ENGAGEMENT_LABELS[mismatch.value]} role`;
     case 'ir35Status':
       return `it's ${mismatch.value} IR35`;
+    case 'workingPattern':
+      return mismatch.value === 'Remote' ? "it's a fully remote role" : `it's ${mismatch.value === 'Hybrid' ? 'a hybrid' : 'an on-site'} role`;
+    case 'officeDays':
+      return `it needs ${mismatch.value} office ${mismatch.value === 1 ? 'day' : 'days'} a week`;
+    case 'location':
+      return `the office is in ${mismatch.value}`;
   }
 }
 
@@ -89,5 +116,11 @@ function ask(question: Question, settings: Settings): string {
       return question.contractConfirmed || settings.engagementTypes.length === 1
         ? 'What is the IR35 determination (Inside or Outside)?'
         : 'If it is a contract, what is the IR35 determination (Inside or Outside)?';
+    case 'workingPattern':
+      return 'Is the role fully remote, hybrid or on-site?';
+    case 'officeDays':
+      return 'How many days a week would be spent in the office?';
+    case 'location':
+      return 'Where is the office located?';
   }
 }

@@ -1,4 +1,4 @@
-import type { EngagementType, IR35Status } from '../settings/settings';
+import type { EngagementType, IR35Status, WorkingPattern } from '../settings/settings';
 
 export const UNKNOWN = 'Unknown';
 export type Unknown = typeof UNKNOWN;
@@ -7,6 +7,15 @@ export type Unknown = typeof UNKNOWN;
 export interface OpportunityFacts {
   engagementType: EngagementType | Unknown;
   ir35Status: IR35Status | Unknown;
+  workingPattern: WorkingPatternFacts | Unknown;
+}
+
+export interface WorkingPatternFacts {
+  pattern: WorkingPattern;
+  /** Office days per week, for Hybrid. */
+  officeDaysPerWeek: number | Unknown;
+  /** Where the office is, as the recruiter wrote it. */
+  location: string | Unknown;
 }
 
 /** Turns a Thread's messages into Opportunity facts. Uncertainty must come back as Unknown. */

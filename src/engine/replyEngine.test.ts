@@ -170,7 +170,120 @@ describe('IR35 Status', () => {
   });
 });
 
+describe('Working Pattern', () => {
+  const remoteOnly: Settings = { ...contractor, workingPatterns: ['Remote'] };
+  const hybridOk: Settings = {
+    ...contractor,
+    workingPatterns: ['Remote', 'Hybrid'],
+    hybrid: { maxOfficeDaysPerWeek: 2, cities: ['London', 'Leeds'] },
+  };
+  const outsideContract = 'A 6 month contract, Outside IR35.';
+
+  it.each([
+    'Fully remote.',
+    '100% remote, UK based.',
+    'Remote-first team.',
+    'You can work from home.',
+    'The role is remote.',
+  ])('accepts a Remote Opportunity: %s', (message) => {
+    expect(draft(replyTo(thread(`${outsideContract} ${message}`), remoteOnly)).kind).toBe('interest');
+  });
+
+  it.each([
+    ['a hybrid role', 'Hybrid working.'],
+    ['a hybrid role', '2 days a week in the office.'],
+    ['a hybrid role', 'Onsite 2 days per week.'],
+    ['a hybrid role', 'Remote with occasional travel to the office.'],
+    ['a hybrid role', 'Mostly remote with quarterly onsite meetups.'],
+    ['a hybrid role', 'Two anchor days in the London office.'],
+    ['an on-site role', 'Office-based.'],
+    ['an on-site role', '5 days a week in the office.'],
+    ['an on-site role', 'This is fully on-site.'],
+  ])('declines %s when only Remote is accepted: %s', (described, message) => {
+    const outcome = draft(replyTo(thread(`${outsideContract} ${message}`), remoteOnly));
+
+    expect(outcome.kind).toBe('decline');
+    expect(outcome.text).toContain(`- it's ${described}`);
+  });
+
+  it('asks for the Working Pattern when it is Unknown', () => {
+    const outcome = draft(replyTo(thread(outsideContract), remoteOnly));
+
+    expect(outcome.kind).toBe('clarification');
+    expect(outcome.text).toContain('1. Is the role fully remote, hybrid or on-site?');
+  });
+
+  it('treats conflicting Working Pattern signals as Unknown', () => {
+    const outcome = draft(replyTo(thread(`${outsideContract} Fully remote, but 3 days a week in the office.`), remoteOnly));
+
+    expect(outcome.kind).toBe('clarification');
+  });
+
+  it('does not ask for the Working Pattern when every pattern is accepted', () => {
+    expect(draft(replyTo(thread(outsideContract), contractor)).kind).toBe('interest');
+  });
+
+  it('accepts Hybrid within the office-day limit and commuting cities', () => {
+    const message = `${outsideContract} Hybrid, 2 days a week in London.`;
+
+    expect(draft(replyTo(thread(message), hybridOk)).kind).toBe('interest');
+  });
+
+  it('matches commuting cities as case-insensitive substrings', () => {
+    const message = `${outsideContract} Hybrid, two days per week at our City of London office.`;
+
+    expect(draft(replyTo(thread(message), hybridOk)).kind).toBe('interest');
+  });
+
+  it('declines Hybrid with more office days than the maximum', () => {
+    const outcome = draft(replyTo(thread(`${outsideContract} 3 days a week in the office, based in London.`), hybridOk));
+
+    expect(outcome.kind).toBe('decline');
+    expect(outcome.text).toContain('- it needs 3 office days a week');
+  });
+
+  it('declines an office outside the commuting cities', () => {
+    const outcome = draft(replyTo(thread(`${outsideContract} Hybrid, 1 day a week in Manchester.`), hybridOk));
+
+    expect(outcome.kind).toBe('decline');
+    expect(outcome.text).toContain('- the office is in Manchester');
+  });
+
+  it.each([
+    ['Hybrid, based in London.', 'How many days a week would be spent in the office?'],
+    ['Hybrid, 2 days a month in London.', 'How many days a week would be spent in the office?'],
+    ['Hybrid, 2 days in the office.', 'How many days a week would be spent in the office?'],
+    ['Hybrid, 2 days a week.', 'Where is the office located?'],
+  ])('asks about Unknown Hybrid details: %s', (detail, question) => {
+    const outcome = draft(replyTo(thread(`${outsideContract} ${detail}`), hybridOk));
+
+    expect(outcome.kind).toBe('clarification');
+    expect(outcome.text).toContain(question);
+  });
+
+  it('does not ask about office days or location when the Candidate set no limits', () => {
+    const noLimits: Settings = { ...contractor, workingPatterns: ['Hybrid'] };
+
+    expect(draft(replyTo(thread(`${outsideContract} Hybrid working.`), noLimits)).kind).toBe('interest');
+  });
+
+  it('states Working Pattern limits in the Decline criteria', () => {
+    const outcome = draft(replyTo(thread(`${outsideContract} Office-based.`), hybridOk));
+
+    expect(outcome.text).toContain(
+      "I'm currently only considering Outside IR35 contract roles that are remote or hybrid (up to 2 office days a week in London or Leeds).",
+    );
+  });
+});
+
 describe('Decline', () => {
+  it('cites Working Pattern Mismatches together with IR35 Mismatches', () => {
+    const remoteOnly: Settings = { ...contractor, workingPatterns: ['Remote'] };
+    const outcome = draft(replyTo(thread('A 6 month contract, inside IR35, hybrid in Leeds.'), remoteOnly));
+
+    expect(outcome.text).toContain("- it's Inside IR35\n- it's a hybrid role");
+  });
+
   it('cites every Mismatch, states the criteria, and asks no questions', () => {
     const settings: Settings = { ...contractor, engagementTypes: ['Contract'] };
     const outcome = draft(replyTo(thread('Contract or FTC. Inside IR35.'), settings));

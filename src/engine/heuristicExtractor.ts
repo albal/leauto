@@ -1,5 +1,5 @@
-import type { EngagementType, IR35Status } from '../settings/settings';
-import { UNKNOWN, type FactExtractor, type OpportunityFacts, type Unknown } from './facts';
+import type { EngagementType, IR35Status, WorkingPattern } from '../settings/settings';
+import { UNKNOWN, type FactExtractor, type OpportunityFacts, type Unknown, type WorkingPatternFacts } from './facts';
 
 /**
  * Keyword and pattern extraction tuned to UK contracting vocabulary.
@@ -8,11 +8,13 @@ import { UNKNOWN, type FactExtractor, type OpportunityFacts, type Unknown } from
  */
 export const heuristicExtractor: FactExtractor = {
   extract(recruiterMessages) {
-    const text = normalise(recruiterMessages.join('\n'));
+    const original = recruiterMessages.join('\n');
+    const text = normalise(original);
     const ir35Status = ir35From(text);
     return {
       engagementType: engagementTypeFrom(text, ir35Status !== UNKNOWN),
       ir35Status,
+      workingPattern: workingPatternFrom(text, original),
     } satisfies OpportunityFacts;
   },
 };
@@ -85,4 +87,60 @@ function ir35From(text: string): IR35Status | Unknown {
   const statements = matchAll(text, IR35_STATEMENT_RULES).found;
   if (statements.size) return single(statements);
   return single(matchAll(text, IR35_HINT_RULES).found);
+}
+
+const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+const NUMBER = String.raw`(\d|one|two|three|four|five)`;
+const PLACE = String.raw`(the )?(office|site|onsite|on-site|client site|hq)`;
+/** Absorbs the place on either side, so "onsite 2 days a week" isn't also read as On-site. */
+const AROUND = (core: string) => new RegExp(String.raw`(${PLACE} )?(?:${core})( (in|on|at))?( ${PLACE})?`);
+
+/** "2 days a week in the office", "3x per week onsite", "two days per week". */
+const WEEKLY_DAYS = AROUND(String.raw`\b(?<count>\d|one|two|three|four|five)\s*(x|days?|times)( a| per| each)? week\b`);
+/** Office days with no period, or a monthly one: Hybrid, but how many per week is Unknown. */
+const UNPERIODED_DAYS = AROUND(
+  String.raw`\b${NUMBER}\s*(x|days?|times)( a| per| each)? month\b|\b${NUMBER} days? ((in|on|at) )?${PLACE}`,
+);
+const OCCASIONAL_OFFICE = new RegExp(
+  String.raw`\b(occasional(ly)?|quarterly|monthly|ad[- ]hoc|infrequent)( (travel|visits?|trips?|days?|meet-?ups?))?( (to|in|on|at))? ${PLACE}`,
+);
+
+const PATTERN_RULES: Rule<WorkingPattern>[] = [
+  { value: 'On-site', pattern: /\b(5|five) days (a|per) week\b|\b(fully|100%) (office[- ]based|on[- ]?site)\b/ },
+  { value: 'Hybrid', pattern: WEEKLY_DAYS },
+  { value: 'Hybrid', pattern: UNPERIODED_DAYS },
+  { value: 'Hybrid', pattern: OCCASIONAL_OFFICE },
+  { value: 'Hybrid', pattern: /\bhybrid\b|\banchor days?\b/ },
+  { value: 'Remote', pattern: /\b(fully|100%|completely|entirely|totally) remote\b|\bremote[- ]first\b|\bwork(ing)? from home\b|\bwfh\b/ },
+  { value: 'On-site', pattern: /\bon[- ]?site\b|\boffice[- ]based\b|\bin[- ]office\b/ },
+];
+
+function workingPatternFrom(text: string, original: string): WorkingPatternFacts | Unknown {
+  const { found, rest } = matchAll(text, PATTERN_RULES);
+  // A bare "remote" only counts when nothing more specific was said.
+  const pattern = found.size ? single(found) : /\bremote\b/.test(rest) ? 'Remote' : UNKNOWN;
+  if (pattern === UNKNOWN) return UNKNOWN;
+  if (pattern === 'Remote') return { pattern, officeDaysPerWeek: UNKNOWN, location: UNKNOWN };
+
+  const days = WEEKLY_DAYS.exec(text)?.groups?.count;
+  return {
+    pattern,
+    officeDaysPerWeek: pattern === 'On-site' ? 5 : days ? (NUMBER_WORDS[days] ?? Number(days)) : UNKNOWN,
+    location: locationFrom(original),
+  };
+}
+
+const PLACE_NAME = String.raw`([A-Z][\w'-]+(?:[ -](?:of|upon|on|under)?[ -]?[A-Z][\w'-]+)*)`;
+const LOCATION_PATTERNS = [
+  new RegExp(String.raw`\b(?:based|located|office|offices|site|hub|onsite|on-site|days?|week) (?:in|at) ${PLACE_NAME}`),
+  new RegExp(String.raw`\b(?:in|at) (?:our|the|their|its) ${PLACE_NAME} (?:office|offices|hub|site|HQ)\b`),
+  new RegExp(String.raw`\b${PLACE_NAME}[- ]based\b`),
+];
+
+function locationFrom(original: string): string | Unknown {
+  for (const pattern of LOCATION_PATTERNS) {
+    const place = pattern.exec(original)?.[1];
+    if (place) return place;
+  }
+  return UNKNOWN;
 }
