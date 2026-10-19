@@ -34,3 +34,33 @@ test('Draft reply declines an Inside IR35 contract', async ({ seedSettings, open
   await expect(composeBox(page)).toContainText("it's Inside IR35");
   await expect(composeBox(page)).toContainText('Outside IR35 contract roles');
 });
+
+test('a Thread with no job details shows a notice, and Draft anyway writes a Clarification', async ({
+  seedSettings,
+  openThread,
+}) => {
+  await seedSettings(CONFIGURED);
+  const page = await openThread('thread-sales-pitch');
+
+  await bar(page).getByRole('button', { name: 'Draft reply' }).click();
+  await expect(bar(page)).toContainText('No job details detected');
+  await expect(composeBox(page)).toHaveText('');
+
+  await bar(page).getByRole('button', { name: 'Draft anyway' }).click();
+  await expect(composeBox(page)).toContainText('Hi Casey,');
+  await expect(composeBox(page)).toContainText('permanent, fixed-term or contract?');
+  await expect(bar(page)).not.toContainText('No job details detected');
+});
+
+test("the already-replied notice shows when the Candidate's message is the latest", async ({
+  seedSettings,
+  openThread,
+}) => {
+  await seedSettings(CONFIGURED);
+  const page = await openThread('thread-already-replied');
+
+  await bar(page).getByRole('button', { name: 'Draft reply' }).click();
+
+  await expect(bar(page)).toContainText("You've already replied. There's nothing new to answer.");
+  await expect(composeBox(page)).toHaveText('');
+});

@@ -9,8 +9,10 @@ export interface OpportunityFacts {
   ir35Status: IR35Status | Unknown;
   workingPattern: WorkingPatternFacts | Unknown;
   rate: StatedRate | Unknown;
-  /** Whether the recruiter asked for the Candidate's rate. */
+  /** Whether the Unanswered Messages ask for the Candidate's rate. */
   askedForRate: boolean;
+  /** Whether anything in the Thread suggests a job pitch at all. */
+  hasJobSignals: boolean;
 }
 
 /** A rate the recruiter stated; for a range, its top figure. */
@@ -31,6 +33,9 @@ export interface WorkingPatternFacts {
 
 /** Turns a Thread's messages into Opportunity facts. Uncertainty must come back as Unknown. */
 export interface FactExtractor {
-  /** `recruiterMessages` are every message the recruiter sent in the Thread, oldest first. */
-  extract(recruiterMessages: string[]): OpportunityFacts;
+  /**
+   * `recruiterMessages` are every message the recruiter sent in the Thread, oldest first;
+   * `unansweredMessages` are those sent after the Candidate's most recent reply.
+   */
+  extract(recruiterMessages: string[], unansweredMessages: string[]): OpportunityFacts;
 }

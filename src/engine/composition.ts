@@ -142,5 +142,7 @@ function ask(question: Question, settings: Settings): string {
       return 'Where is the office located?';
     case 'rate':
       return 'What is the day rate budget?';
+    case 'details':
+      return 'Could you share more details about the role?';
   }
 }

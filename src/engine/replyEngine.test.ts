@@ -42,7 +42,7 @@ describe('greeting and sign-off', () => {
   });
 
   it('greets with "Hi there," when the recruiter name is absent', () => {
-    const { text } = draft(replyTo({ ...thread('Hello!'), recruiterName: null }, contractor));
+    const { text } = draft(replyTo({ ...thread('A Cloud Architect role.'), recruiterName: null }, contractor));
 
     expect(text).toMatch(/^Hi there,\n/);
   });
@@ -425,15 +425,82 @@ describe('Expression of Interest', () => {
 });
 
 describe('Thread', () => {
-  it("ignores the Candidate's own messages when gathering facts", () => {
-    const snapshot: ThreadSnapshot = {
-      recruiterName: 'Jordan Smith',
-      messages: [
-        { text: 'I only do contract work, Outside IR35.', fromRecruiter: false },
-        { text: 'A Senior Cloud Architect opportunity.', fromRecruiter: true },
-      ],
-    };
+  const withRates: Settings = {
+    ...contractor,
+    workingPatterns: ['Remote'],
+    rates: { currency: 'GBP', preferredDayRate: 650, minimumDayRate: null, hoursPerDay: 7.5 },
+  };
+  const recruiter = (text: string) => ({ text, fromRecruiter: true });
+  const candidate = (text: string) => ({ text, fromRecruiter: false });
+  const conversation = (...messages: ThreadSnapshot['messages']): ThreadSnapshot => ({
+    recruiterName: 'Jordan Smith',
+    messages,
+  });
 
-    expect(draft(replyTo(snapshot, contractor)).kind).toBe('clarification');
+  it("gathers facts from all of the recruiter's messages", () => {
+    const snapshot = conversation(
+      recruiter('A 6 month contract, Outside IR35.'),
+      candidate('Thanks. Is it remote?'),
+      recruiter("Yes, it's fully remote."),
+    );
+
+    expect(draft(replyTo(snapshot, withRates)).kind).toBe('interest');
+  });
+
+  it("ignores the Candidate's own messages when gathering facts", () => {
+    const snapshot = conversation(
+      candidate('I only do contract work, Outside IR35, fully remote.'),
+      recruiter('A Senior Cloud Architect opportunity.'),
+    );
+
+    expect(draft(replyTo(snapshot, withRates)).kind).toBe('clarification');
+  });
+
+  it('answers a rate question only when it is in the Unanswered Messages', () => {
+    const answered = conversation(
+      recruiter('A 6 month contract, Outside IR35, fully remote. What is your day rate?'),
+      candidate('My day rate is £650/day.'),
+      recruiter('Great, the client is keen. Can you send your CV?'),
+    );
+    const unanswered = conversation(
+      recruiter('A 6 month contract, Outside IR35, fully remote.'),
+      candidate('Sounds good.'),
+      recruiter('What are your rate expectations?'),
+    );
+
+    expect(draft(replyTo(answered, withRates)).text).not.toContain('my day rate is');
+    expect(draft(replyTo(unanswered, withRates)).text).toContain('my day rate is £650/day');
+  });
+
+  it("shows the already-replied notice when the Candidate's message is the latest", () => {
+    const snapshot = conversation(recruiter('A 6 month contract.'), candidate('Is it Outside IR35?'));
+
+    expect(replyTo(snapshot, withRates)).toEqual({ type: 'notice', notice: 'already-replied' });
+  });
+
+  it.each([
+    'We help agencies like yours generate 3x more leads with our outbound platform. Free trial this week!',
+    'Congratulations on the work anniversary!',
+    'Hi, thanks for connecting.',
+  ])('shows the not-a-job notice when there are no job signals: %s', (message) => {
+    expect(replyTo(thread(message), withRates)).toEqual({ type: 'notice', notice: 'not-a-job' });
+  });
+
+  it('writes a Clarification when the Candidate chooses Draft anyway', () => {
+    const outcome = draft(replyTo(thread('Hi, thanks for connecting.'), withRates, { force: 'clarification' }));
+
+    expect(outcome.kind).toBe('clarification');
+    expect(outcome.text).toContain('Is this opportunity permanent, fixed-term or contract?');
+  });
+
+  it('asks for more details when a forced Clarification has nothing specific to ask', () => {
+    const anything: Settings = {
+      ...contractor,
+      engagementTypes: ['Permanent', 'Fixed-Term', 'Contract'],
+      ir35: { enabled: false, accepted: [] },
+    };
+    const outcome = draft(replyTo(thread('Hi, thanks for connecting.'), anything, { force: 'clarification' }));
+
+    expect(outcome.text).toContain('1. Could you share more details about the role?');
   });
 });

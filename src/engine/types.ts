@@ -15,6 +15,11 @@ export interface ThreadSnapshot {
 
 export type DraftKind = 'decline' | 'clarification' | 'interest';
 
+export interface ReplyOptions {
+  /** Compose this kind regardless of the Thread, skipping the not-a-job, already-replied and Mismatch steps. */
+  force?: DraftKind;
+}
+
 export type Notice = 'not-set-up' | 'not-a-job' | 'already-replied';
 
 export type Outcome =

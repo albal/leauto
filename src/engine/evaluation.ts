@@ -25,7 +25,9 @@ export type Question =
   | { fact: 'workingPattern' }
   | { fact: 'officeDays' }
   | { fact: 'location' }
-  | { fact: 'rate' };
+  | { fact: 'rate' }
+  /** Nothing specific to ask, but the Candidate wants a Clarification anyway. */
+  | { fact: 'details' };
 
 export interface Evaluation {
   mismatches: Mismatch[];

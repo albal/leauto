@@ -7,17 +7,21 @@ import { UNKNOWN, type FactExtractor, type OpportunityFacts, type StatedRate, ty
  * isn't counted again as "contract". Conflicting signals give Unknown.
  */
 export const heuristicExtractor: FactExtractor = {
-  extract(recruiterMessages) {
+  extract(recruiterMessages, unansweredMessages) {
     const original = recruiterMessages.join('\n');
     const text = normalise(original);
     const ir35Status = ir35From(text);
-    return {
+    const facts = {
       engagementType: engagementTypeFrom(text, ir35Status !== UNKNOWN),
       ir35Status,
       workingPattern: workingPatternFrom(text, original),
       rate: rateFrom(text),
-      askedForRate: asksForRate(text),
-    } satisfies OpportunityFacts;
+      askedForRate: asksForRate(normalise(unansweredMessages.join('\n'))),
+    };
+    const anyFactKnown = [facts.engagementType, facts.ir35Status, facts.workingPattern, facts.rate].some(
+      (fact) => fact !== UNKNOWN,
+    );
+    return { ...facts, hasJobSignals: anyFactKnown || JOB_WORDS.test(text) } satisfies OpportunityFacts;
   },
 };
 
@@ -186,3 +190,7 @@ function asksForRate(text: string): boolean {
     .split(/(?<=[?.!])\s+/)
     .some((sentence) => sentence.includes('?') && RATE_WORDS.test(sentence) && ASKING_YOU.test(sentence));
 }
+
+/** Words that mark a message as a job pitch rather than, say, a sales pitch. */
+const JOB_WORDS =
+  /\b(role|roles|position|opportunit(y|ies)|vacanc(y|ies)|job|jobs|hiring|recruit\w*|cv|resume|interview|job spec|my client|our client is|client is looking|on behalf of|candidates?|start date|immediate start|notice period)\b/;

@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
 import { replyTo } from '../engine/replyEngine';
-import type { Notice } from '../engine/types';
+import type { Notice, ReplyOptions } from '../engine/types';
 import type { BackgroundMessage } from '../messages';
 import { findComposeBox, findComposeForm, isMessagingPage, readThread, writeDraft } from '../page/adapter';
 import { loadSettings } from '../settings/store';
@@ -26,11 +26,11 @@ export default defineContentScript({
   },
 });
 
-async function draftReply(bar: ButtonBar): Promise<void> {
+async function draftReply(bar: ButtonBar, options: ReplyOptions = {}): Promise<void> {
   bar.clearNotice();
   const read = readThread(document);
   if (!read.ok) return;
-  const outcome = replyTo(read.snapshot, await loadSettings());
+  const outcome = replyTo(read.snapshot, await loadSettings(), options);
   if (outcome.type === 'notice') {
     showNotice(bar, outcome.notice);
     return;
@@ -46,8 +46,14 @@ function showNotice(bar: ButtonBar, notice: Notice): void {
         { label: 'Open settings', onClick: () => sendToBackground({ type: 'open-options' }) },
       ]);
       break;
-    default:
-      bar.showNotice(notice);
+    case 'not-a-job':
+      bar.showNotice('No job details detected, so no Draft was written.', [
+        { label: 'Draft anyway', onClick: () => draftReply(bar, { force: 'clarification' }) },
+      ]);
+      break;
+    case 'already-replied':
+      bar.showNotice("You've already replied. There's nothing new to answer.");
+      break;
   }
 }
 
