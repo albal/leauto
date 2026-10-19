@@ -276,6 +276,113 @@ describe('Working Pattern', () => {
   });
 });
 
+describe('Rate', () => {
+  const withRates: Settings = {
+    ...contractor,
+    rates: { currency: 'GBP', preferredDayRate: 650, minimumDayRate: 600, hoursPerDay: 7.5 },
+  };
+  const outsideContract = 'A 6 month contract, Outside IR35.';
+
+  it.each([
+    '£600/day.',
+    '£600 p/d.',
+    '600 a day.',
+    'Up to £650 per day.',
+    '£550-£650 per day.',
+    '£550 - 650/day.',
+    'Between £500 and £600 p/d.',
+    'Day rate of £620.',
+    '£80/hr.',
+    '£80 per hour.',
+    'Hourly rate up to £82.50.',
+    '600 GBP per day.',
+  ])('accepts a rate at or above the Minimum Rate: %s', (rate) => {
+    expect(draft(replyTo(thread(`${outsideContract} ${rate}`), withRates)).kind).toBe('interest');
+  });
+
+  it.each([
+    ['£500/day.', '£500/day'],
+    ['£450-£550 per day.', '£550/day'],
+    ['£70/hr.', '£525/day'],
+  ])('declines a rate below the Minimum Rate: %s', (rate, cited) => {
+    const outcome = draft(replyTo(thread(`${outsideContract} ${rate}`), withRates));
+
+    expect(outcome.kind).toBe('decline');
+    expect(outcome.text).toContain(`- the rate (${cited}) is below what I'm looking for`);
+  });
+
+  it('converts hourly rates using the configured hours per day', () => {
+    const eightHourDays: Settings = { ...withRates, rates: { ...withRates.rates, hoursPerDay: 8 } };
+
+    expect(draft(replyTo(thread(`${outsideContract} £75/hr.`), eightHourDays)).kind).toBe('interest');
+    expect(draft(replyTo(thread(`${outsideContract} £75/hr.`), withRates)).kind).toBe('decline');
+  });
+
+  it.each([
+    'Competitive rate.',
+    'Market rate.',
+    'Rate DOE.',
+    '€700 per day.',
+    '$900/day.',
+    'Salary £90k.',
+  ])('asks for the rate when it is Unknown: %s', (rate) => {
+    const outcome = draft(replyTo(thread(`${outsideContract} ${rate}`), withRates));
+
+    expect(outcome.text).toContain('What is the day rate budget?');
+  });
+
+  it('does not ask for the rate when no Minimum Rate is set', () => {
+    const noMinimum: Settings = { ...withRates, rates: { ...withRates.rates, minimumDayRate: null } };
+
+    expect(draft(replyTo(thread(outsideContract), noMinimum)).kind).toBe('interest');
+  });
+
+  it('uses the most recently stated rate', () => {
+    const outcome = replyTo(thread(`${outsideContract} £500/day.`, 'Good news, the client can go to £650/day.'), withRates);
+
+    expect(draft(outcome).kind).toBe('interest');
+  });
+
+  it.each([
+    'What is your day rate?',
+    'What are your rate expectations?',
+    "What are you looking for rate-wise?",
+    'What would you charge for this?',
+  ])('adds a Rate Quote when the recruiter asks: %s', (question) => {
+    const outcome = draft(replyTo(thread(`${outsideContract} £600/day. ${question}`), withRates));
+
+    expect(outcome.kind).toBe('interest');
+    expect(outcome.text).toContain('In answer to your question about rates: my day rate is £650/day.');
+  });
+
+  it('adds a Rate Quote to a Clarification', () => {
+    const outcome = draft(replyTo(thread('A 6 month contract. What is your day rate?'), withRates));
+
+    expect(outcome.kind).toBe('clarification');
+    expect(outcome.text).toContain('my day rate is £650/day');
+  });
+
+  it('never adds a Rate Quote to a Decline', () => {
+    const outcome = draft(replyTo(thread('A 6 month contract, inside IR35. What is your day rate?'), withRates));
+
+    expect(outcome.kind).toBe('decline');
+    expect(outcome.text).not.toContain('£650');
+  });
+
+  it('adds no Rate Quote when the recruiter did not ask', () => {
+    const outcome = draft(replyTo(thread(`${outsideContract} £600/day. Are you available?`), withRates));
+
+    expect(outcome.text).not.toContain('In answer to your question about rates');
+  });
+
+  it('quotes in the Candidate\'s currency', () => {
+    const euros: Settings = { ...withRates, rates: { ...withRates.rates, currency: 'EUR', minimumDayRate: null } };
+    const outcome = draft(replyTo(thread(`${outsideContract} What is your day rate?`), euros));
+
+    expect(outcome.text).toContain('my day rate is €650/day');
+  });
+});
+
 describe('Decline', () => {
   it('cites Working Pattern Mismatches together with IR35 Mismatches', () => {
     const remoteOnly: Settings = { ...contractor, workingPatterns: ['Remote'] };

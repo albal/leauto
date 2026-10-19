@@ -1,5 +1,5 @@
-import type { EngagementType, IR35Status, WorkingPattern } from '../settings/settings';
-import { UNKNOWN, type FactExtractor, type OpportunityFacts, type Unknown, type WorkingPatternFacts } from './facts';
+import type { Currency, EngagementType, IR35Status, WorkingPattern } from '../settings/settings';
+import { UNKNOWN, type FactExtractor, type OpportunityFacts, type StatedRate, type Unknown, type WorkingPatternFacts } from './facts';
 
 /**
  * Keyword and pattern extraction tuned to UK contracting vocabulary.
@@ -15,6 +15,8 @@ export const heuristicExtractor: FactExtractor = {
       engagementType: engagementTypeFrom(text, ir35Status !== UNKNOWN),
       ir35Status,
       workingPattern: workingPatternFrom(text, original),
+      rate: rateFrom(text),
+      askedForRate: asksForRate(text),
     } satisfies OpportunityFacts;
   },
 };
@@ -58,7 +60,7 @@ const ENGAGEMENT_RULES: Rule<EngagementType>[] = [
   { value: 'Permanent', pattern: /\bsalary\b|\bsalaried\b|\bper annum\b|\bbenefits package\b|\bpension\b/ },
   { value: 'Permanent', pattern: /£\s?\d{2,3}k\b|\b\d{2,3}k \+ (bonus|benefits)\b/ },
   { value: 'Contract', pattern: /\bcontract(s|or|ors|ing)?\b/ },
-  { value: 'Contract', pattern: /\bday rate\b|\bper day\b|\bp\/d\b|\bfreelance\b/ },
+  { value: 'Contract', pattern: /\b(day|daily|hourly) rate\b|\bper (day|hour)\b|\bp\/[dh]\b|\/ ?(day|hr|hour)\b|\bfreelance\b/ },
   { value: 'Contract', pattern: /\b\d{1,2}[- ]?(month|mth)s?( initial)?\b|\binitial \d{1,2}\b/ },
 ];
 
@@ -143,4 +145,44 @@ function locationFrom(original: string): string | Unknown {
     if (place) return place;
   }
   return UNKNOWN;
+}
+
+const CURRENCY_SIGNS: Record<string, Currency> = { '£': 'GBP', $: 'USD', '€': 'EUR', gbp: 'GBP', usd: 'USD', eur: 'EUR' };
+const sign = (name: string) => String.raw`(?<${name}>£|\$|€|gbp|usd|eur)`;
+const amount = (name: string) => String.raw`(?<${name}>(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)`;
+const DAY = String.raw`\/ ?day|\/ ?d\b|per day|a day|p\/d|pd\b|per diem|daily`;
+const HOUR = String.raw`\/ ?hr|\/ ?hour|\/ ?h\b|per hour|an hour|p\/h|ph\b|hourly`;
+/** "£550-£650/day", "up to €700 per day", "600 GBP a day", "£75/hr", "between £500 and £600 p/d". */
+const RATE = new RegExp(
+  String.raw`${sign('fromSign')}? ?${amount('from')}(?! ?k\b)` +
+    String.raw`(?:\s*(?:-|to|and)\s*${sign('toSign')}? ?${amount('to')})?` +
+    String.raw`(?: ?${sign('afterSign')})?\s*(?:(?<day>${DAY})|(?<hour>${HOUR}))?`,
+  'g',
+);
+/** Rate words that give a bare amount its unit: "day rate of £600", "hourly rate up to £80". */
+const UNIT_CONTEXT = /\b(day|daily|hourly) rate\b[^.\d]{0,20}$/;
+
+function rateFrom(text: string): StatedRate | Unknown {
+  // The most recent rate wins: recruiters revise budgets as a Thread goes on.
+  let latest: StatedRate | Unknown = UNKNOWN;
+  for (const match of text.matchAll(RATE)) {
+    const g = match.groups!;
+    const context = UNIT_CONTEXT.exec(text.slice(Math.max(0, match.index - 30), match.index))?.[1];
+    const per = g.day ? 'day' : g.hour ? 'hour' : context === 'hourly' ? 'hour' : context ? 'day' : null;
+    const top = Number((g.to ?? g.from)!.replace(/,/g, ''));
+    if (!per || top < 10) continue;
+    const currency = g.fromSign ?? g.toSign ?? g.afterSign;
+    latest = { amount: top, per, currency: currency ? CURRENCY_SIGNS[currency]! : null };
+  }
+  return latest;
+}
+
+const RATE_WORDS = /\b(day rate|daily rate|hourly rate|rates?|charge|rate[- ]wise|expectations?|budget you|looking for (money|financially))\b/;
+const ASKING_YOU = /\b(you|your|you're|you'd)\b/;
+
+/** True when a question asks the Candidate about their rate. */
+function asksForRate(text: string): boolean {
+  return text
+    .split(/(?<=[?.!])\s+/)
+    .some((sentence) => sentence.includes('?') && RATE_WORDS.test(sentence) && ASKING_YOU.test(sentence));
 }

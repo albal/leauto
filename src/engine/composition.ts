@@ -1,8 +1,8 @@
-import type { EngagementType, Settings, WorkingPattern } from '../settings/settings';
+import type { Currency, EngagementType, Settings, WorkingPattern } from '../settings/settings';
 import type { Mismatch, Question } from './evaluation';
 import type { DraftKind } from './types';
 
-const TEMPLATES: Record<DraftKind, string> = {
+const TEMPLATES: Record<DraftKind | 'rateQuote', string> = {
   decline: `Hi {recruiterFirstName},
 
 Thanks for reaching out with this opportunity. {criteria} Unfortunately this one isn't a fit:
@@ -17,6 +17,8 @@ Best regards,
 Thanks for reaching out. Before discussing next steps, could you please clarify a few details:
 {questions}
 
+{rateQuote}
+
 Once confirmed, I can let you know if this aligns with my current availability.
 
 Best regards,
@@ -25,10 +27,13 @@ Best regards,
 
 Thanks for reaching out. This sounds like a good fit for what I'm looking for.
 
+{rateQuote}
+
 Could you send over the full job specification, or suggest a time for a call?
 
 Best regards,
 {signOff}`,
+  rateQuote: `In answer to your question about rates: my day rate is {preferredRate}.`,
 };
 
 const ENGAGEMENT_LABELS: Record<EngagementType, string> = {
@@ -47,20 +52,31 @@ export interface DraftParts {
   recruiterName: string | null;
   mismatches: Mismatch[];
   questions: Question[];
+  quoteRate: boolean;
 }
 
 export function compose(kind: DraftKind, parts: DraftParts, settings: Settings): string {
+  const { currency, preferredDayRate } = settings.rates;
   const values: Record<string, string> = {
+    preferredRate: preferredDayRate === null ? '' : dayRate(preferredDayRate, currency),
     recruiterFirstName: parts.recruiterName?.trim().split(/\s+/)[0] || 'there',
     criteria: criteriaSentence(settings),
-    mismatches: parts.mismatches.map((m) => `- ${describeMismatch(m)}`).join('\n'),
+    mismatches: parts.mismatches.map((m) => `- ${describeMismatch(m, settings)}`).join('\n'),
     questions: parts.questions.map((q, i) => `${i + 1}. ${ask(q, settings)}`).join('\n'),
     signOff: settings.signOff.trim(),
   };
-  return TEMPLATES[kind]
-    .replace(/\{(\w+)\}/g, (placeholder, name: string) => values[name] ?? placeholder)
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  // A Decline never quotes a rate.
+  values.rateQuote = parts.quoteRate && kind !== 'decline' ? fill(TEMPLATES.rateQuote, values) : '';
+  return fill(TEMPLATES[kind], values).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function fill(template: string, values: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (placeholder, name: string) => values[name] ?? placeholder);
+}
+
+function dayRate(amount: number, currency: Currency): string {
+  const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 0 });
+  return `${money.format(amount)}/day`;
 }
 
 function list(items: string[], conjunction: 'and' | 'or'): string {
@@ -93,7 +109,7 @@ function patternCriterion(settings: Settings): string {
   return `${list(labels, 'or')}${limits.length ? ` (${limits.join(' ')})` : ''}`;
 }
 
-function describeMismatch(mismatch: Mismatch): string {
+function describeMismatch(mismatch: Mismatch, settings: Settings): string {
   switch (mismatch.fact) {
     case 'engagementType':
       return `it's a ${ENGAGEMENT_LABELS[mismatch.value]} role`;
@@ -105,6 +121,8 @@ function describeMismatch(mismatch: Mismatch): string {
       return `it needs ${mismatch.value} office ${mismatch.value === 1 ? 'day' : 'days'} a week`;
     case 'location':
       return `the office is in ${mismatch.value}`;
+    case 'rate':
+      return `the rate (${dayRate(mismatch.dayRate, settings.rates.currency)}) is below what I'm looking for`;
   }
 }
 
@@ -122,5 +140,7 @@ function ask(question: Question, settings: Settings): string {
       return 'How many days a week would be spent in the office?';
     case 'location':
       return 'Where is the office located?';
+    case 'rate':
+      return 'What is the day rate budget?';
   }
 }

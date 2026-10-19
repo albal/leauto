@@ -7,14 +7,16 @@ import {
   type Settings,
   type WorkingPattern,
 } from '../settings/settings';
-import { UNKNOWN, type OpportunityFacts } from './facts';
+import { UNKNOWN, type OpportunityFacts, type StatedRate, type Unknown } from './facts';
 
 export type Mismatch =
   | { fact: 'engagementType'; value: EngagementType }
   | { fact: 'ir35Status'; value: IR35Status }
   | { fact: 'workingPattern'; value: WorkingPattern }
   | { fact: 'officeDays'; value: number }
-  | { fact: 'location'; value: string };
+  | { fact: 'location'; value: string }
+  /** The stated rate as a day rate in the Candidate's currency. */
+  | { fact: 'rate'; dayRate: number };
 
 /** An Unknown fact that one of the Candidate's active rules depends on. */
 export type Question =
@@ -22,11 +24,14 @@ export type Question =
   | { fact: 'ir35Status'; contractConfirmed: boolean }
   | { fact: 'workingPattern' }
   | { fact: 'officeDays' }
-  | { fact: 'location' };
+  | { fact: 'location' }
+  | { fact: 'rate' };
 
 export interface Evaluation {
   mismatches: Mismatch[];
   questions: Question[];
+  /** Whether a Rate Quote should answer a rate question. */
+  quoteRate: boolean;
 }
 
 const acceptsEvery = <T>(accepted: readonly T[], all: readonly T[]) => all.every((v) => accepted.includes(v));
@@ -34,7 +39,7 @@ const acceptsEvery = <T>(accepted: readonly T[], all: readonly T[]) => all.every
 export function evaluate(facts: OpportunityFacts, settings: Settings): Evaluation {
   const mismatches: Mismatch[] = [];
   const questions: Question[] = [];
-  const { engagementType, ir35Status, workingPattern } = facts;
+  const { engagementType, ir35Status, workingPattern, rate } = facts;
 
   if (engagementType === UNKNOWN) {
     if (!acceptsEvery(settings.engagementTypes, ENGAGEMENT_TYPES)) questions.push({ fact: 'engagementType' });
@@ -73,7 +78,25 @@ export function evaluate(facts: OpportunityFacts, settings: Settings): Evaluatio
     }
   }
 
-  return { mismatches, questions };
+  const minimum = settings.rates.minimumDayRate;
+  if (minimum !== null) {
+    const dayRate = asDayRate(rate, settings);
+    if (dayRate === UNKNOWN) questions.push({ fact: 'rate' });
+    else if (dayRate < minimum) mismatches.push({ fact: 'rate', dayRate });
+  }
+
+  return {
+    mismatches,
+    questions,
+    quoteRate: facts.askedForRate && settings.rates.preferredDayRate !== null,
+  };
+}
+
+/** A rate in another currency can't be compared, so it's Unknown. */
+function asDayRate(rate: StatedRate | Unknown, settings: Settings): number | Unknown {
+  if (rate === UNKNOWN) return UNKNOWN;
+  if (rate.currency !== null && rate.currency !== settings.rates.currency) return UNKNOWN;
+  return rate.per === 'day' ? rate.amount : Math.round(rate.amount * settings.rates.hoursPerDay);
 }
 
 function withinCommute(location: string, cities: string[]): boolean {

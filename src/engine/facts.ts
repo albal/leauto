@@ -1,4 +1,4 @@
-import type { EngagementType, IR35Status, WorkingPattern } from '../settings/settings';
+import type { Currency, EngagementType, IR35Status, WorkingPattern } from '../settings/settings';
 
 export const UNKNOWN = 'Unknown';
 export type Unknown = typeof UNKNOWN;
@@ -8,6 +8,17 @@ export interface OpportunityFacts {
   engagementType: EngagementType | Unknown;
   ir35Status: IR35Status | Unknown;
   workingPattern: WorkingPatternFacts | Unknown;
+  rate: StatedRate | Unknown;
+  /** Whether the recruiter asked for the Candidate's rate. */
+  askedForRate: boolean;
+}
+
+/** A rate the recruiter stated; for a range, its top figure. */
+export interface StatedRate {
+  amount: number;
+  per: 'day' | 'hour';
+  /** Null when the recruiter gave no currency. */
+  currency: Currency | null;
 }
 
 export interface WorkingPatternFacts {

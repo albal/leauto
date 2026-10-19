@@ -18,12 +18,12 @@ export function replyTo(
 
   const recruiterMessages = thread.messages.filter((m) => m.fromRecruiter).map((m) => m.text);
   const facts = extractor.extract(recruiterMessages);
-  const { mismatches, questions } = evaluate(facts, settings);
+  const { mismatches, questions, quoteRate } = evaluate(facts, settings);
 
   const kind: DraftKind = mismatches.length ? 'decline' : questions.length ? 'clarification' : 'interest';
   return {
     type: 'draft',
     kind,
-    text: compose(kind, { recruiterName: thread.recruiterName, mismatches, questions }, settings),
+    text: compose(kind, { recruiterName: thread.recruiterName, mismatches, questions, quoteRate }, settings),
   };
 }
