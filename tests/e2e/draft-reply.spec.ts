@@ -23,3 +23,14 @@ test('the button bar sits above the compose box on the messaging page', async ({
 
   await expect(bar(page).getByRole('button', { name: 'Draft reply' })).toBeVisible();
 });
+
+test('Draft reply declines an Inside IR35 contract', async ({ seedSettings, openThread }) => {
+  await seedSettings(CONFIGURED);
+  const page = await openThread('thread-inside-ir35');
+
+  await bar(page).getByRole('button', { name: 'Draft reply' }).click();
+
+  await expect(composeBox(page)).toContainText('Hi Morgan,');
+  await expect(composeBox(page)).toContainText("it's Inside IR35");
+  await expect(composeBox(page)).toContainText('Outside IR35 contract roles');
+});

@@ -1,0 +1,60 @@
+<!doctype html>
+<!--
+  Sanitised fixture of LinkedIn's full-page messaging Thread. See docs/fixtures.md.
+  Every name, message and ID is invented. The inline script stands in for LinkedIn's
+  React state: Send is enabled only after a real input event on the compose box.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Messaging | LinkedIn</title>
+  </head>
+  <body>
+    <main class="scaffold-layout__main">
+      <div class="msg-thread" data-view-name="message-thread">
+        <div class="msg-title-bar">
+          <h2 class="msg-entity-lockup__entity-title" id="thread-detail-jump-target">Morgan Sample</h2>
+        </div>
+        <div class="msg-s-message-list">
+          <ul class="msg-s-message-list-content">
+            <li class="msg-s-message-list__event">
+              <div class="msg-s-event-listitem msg-s-event-listitem--other" data-event-urn="urn:li:msg_message:FAKE-1">
+                <div class="msg-s-event-listitem__message-bubble">
+                  <p class="msg-s-event-listitem__body">
+                    Hi, I have a 6 month contract with a central government department. It's inside IR35,
+                    paid via umbrella, with an immediate start. Are you available?
+                  </p>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <form class="msg-form">
+          <div class="msg-form__msg-content-container">
+            <div
+              class="msg-form__contenteditable"
+              contenteditable="true"
+              role="textbox"
+              aria-multiline="true"
+              aria-label="Write a message…"
+            ><p><br /></p></div>
+          </div>
+          <footer class="msg-form__footer">
+            <button class="msg-form__send-button" type="submit" disabled>Send</button>
+          </footer>
+        </form>
+      </div>
+    </main>
+    <script>
+      const box = document.querySelector('.msg-form__contenteditable');
+      const send = document.querySelector('.msg-form__send-button');
+      box.addEventListener('input', () => {
+        send.disabled = box.textContent.trim().length === 0;
+      });
+      document.querySelector('.msg-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        document.body.dataset.sent = 'true';
+      });
+    </script>
+  </body>
+</html>
