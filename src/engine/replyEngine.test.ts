@@ -10,6 +10,12 @@ function thread(recruiterName: string | null, ...recruiterMessages: string[]): T
 }
 
 describe('replyTo', () => {
+  it('writes no Draft until the Candidate has finished setup', () => {
+    const outcome = replyTo(thread('Jordan Smith', 'Hello!'), { ...settings, setupComplete: false });
+
+    expect(outcome).toEqual({ type: 'notice', notice: 'not-set-up' });
+  });
+
   it('asks for the Engagement Type in a Clarification', () => {
     const outcome = replyTo(thread('Jordan Smith', 'I have a great Cloud Architect opportunity.'), settings);
 

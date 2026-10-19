@@ -1,4 +1,4 @@
-import { test as base, chromium, type BrowserContext, type Page, type Worker } from '@playwright/test';
+import { test as base, chromium, expect, type BrowserContext, type Page, type Worker } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { EMPTY_SETTINGS, type Settings } from '../../src/settings/settings';
@@ -26,6 +26,8 @@ interface ExtensionFixtures {
   extensionId: string;
   seedSettings(settings: Settings): Promise<void>;
   openThread(fixture: string): Promise<Page>;
+  /** The options tab leauto opens on install. */
+  optionsPage: Page;
 }
 
 export const test = base.extend<ExtensionFixtures>({
@@ -58,7 +60,16 @@ export const test = base.extend<ExtensionFixtures>({
       await serviceWorker.evaluate((s) => chrome.storage.sync.set(s), settings);
     });
   },
-  openThread: async ({ context }, use) => {
+  optionsPage: async ({ context, extensionId }, use) => {
+    const url = `chrome-extension://${extensionId}/options.html`;
+    const find = () => context.pages().find((p) => p.url() === url);
+    await expect.poll(() => find()?.url()).toBe(url);
+    const page = find()!;
+    await page.waitForLoadState();
+    await use(page);
+  },
+  // Waits for the install-time options tab first, so it can't hijack the Thread's tab.
+  openThread: async ({ context, optionsPage: _ }, use) => {
     await use(async (fixture) => {
       const page = await context.newPage();
       await page.goto(`https://www.linkedin.com/messaging/thread/FAKE-THREAD/?fixture=${fixture}`);
@@ -67,7 +78,7 @@ export const test = base.extend<ExtensionFixtures>({
   },
 });
 
-export { expect } from '@playwright/test';
+export { expect };
 
 export function composeBox(page: Page) {
   return page.locator('.msg-form__contenteditable');

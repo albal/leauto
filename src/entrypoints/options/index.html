@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>leauto settings</title>
+    <meta name="manifest.open_in_tab" content="true" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>leauto settings</h1>
+      <p class="privacy">
+        Your messages never leave your browser. leauto reads a Thread only when you click one of its
+        buttons, and it never sends anything for you.
+      </p>
+
+      <form id="settings" novalidate>
+        <fieldset>
+          <legend>Engagement Types you accept</legend>
+          <label><input type="checkbox" name="engagementTypes" value="Contract" /> Contract</label>
+          <label><input type="checkbox" name="engagementTypes" value="Fixed-Term" /> Fixed-Term</label>
+          <label><input type="checkbox" name="engagementTypes" value="Permanent" /> Permanent</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>IR35</legend>
+          <label><input type="checkbox" name="ir35Enabled" /> Apply an IR35 rule to Contract roles</label>
+          <div class="indent">
+            <label><input type="checkbox" name="ir35Accepted" value="Outside" /> Accept Outside IR35</label>
+            <label><input type="checkbox" name="ir35Accepted" value="Inside" /> Accept Inside IR35</label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Working Patterns you accept</legend>
+          <label><input type="checkbox" name="workingPatterns" value="Remote" /> Remote</label>
+          <label><input type="checkbox" name="workingPatterns" value="Hybrid" /> Hybrid</label>
+          <label><input type="checkbox" name="workingPatterns" value="On-site" /> On-site</label>
+          <div class="indent">
+            <label>
+              Maximum Hybrid office days per week
+              <input type="number" name="maxOfficeDaysPerWeek" min="1" max="5" step="1" />
+            </label>
+            <label>
+              Cities you'll commute to (one per line)
+              <textarea name="cities" rows="3"></textarea>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Rates</legend>
+          <label>
+            Currency
+            <select name="currency">
+              <option value="GBP">£ GBP</option>
+              <option value="USD">$ USD</option>
+              <option value="EUR">€ EUR</option>
+            </select>
+          </label>
+          <label>
+            Preferred Rate (per day)
+            <input type="number" name="preferredDayRate" min="0" step="1" />
+          </label>
+          <label>
+            Minimum Rate (per day, optional)
+            <input type="number" name="minimumDayRate" min="0" step="1" />
+          </label>
+          <label>
+            Hours in a working day (for converting hourly rates)
+            <input type="number" name="hoursPerDay" min="1" max="24" step="0.5" />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Drafts</legend>
+          <label>
+            Sign-off name
+            <input type="text" name="signOff" autocomplete="name" />
+          </label>
+          <label>
+            Tone
+            <select name="tone">
+              <option value="direct">Direct &amp; Professional</option>
+              <option value="warm">Warm &amp; Cordial</option>
+              <option value="brief">Brief &amp; Crisp</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <div class="actions">
+          <button type="submit">Save</button>
+          <p id="status" role="status"></p>
+        </div>
+      </form>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

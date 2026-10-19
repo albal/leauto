@@ -6,6 +6,8 @@ import type { Outcome, ThreadSnapshot } from './types';
  * Pure: no DOM, no browser APIs.
  */
 export function replyTo(thread: ThreadSnapshot, settings: Settings): Outcome {
+  if (!settings.setupComplete) return { type: 'notice', notice: 'not-set-up' };
+
   const questions = ['Is this opportunity permanent, fixed-term or contract?'];
   return {
     type: 'draft',
