@@ -574,3 +574,46 @@ describe('tones and templates', () => {
     expect(draft(replyTo(thread('A 6 month contract, Outside IR35.'), settings)).text).toContain('full job specification');
   });
 });
+
+describe('forced Draft kinds', () => {
+  const match = 'A 6 month contract, Outside IR35.';
+
+  it.each(['decline', 'clarification', 'interest'] as const)('composes a forced %s regardless of the facts', (kind) => {
+    expect(draft(replyTo(thread(match), contractor, { force: kind })).kind).toBe(kind);
+  });
+
+  it('writes a polite Decline even when nothing is a Mismatch', () => {
+    const outcome = draft(replyTo(thread(match), contractor, { force: 'decline' }));
+
+    expect(outcome.text).toContain("Unfortunately this one isn't a fit:\n- it isn't what I'm looking for right now");
+  });
+
+  it('forces an Expression of Interest despite a Mismatch', () => {
+    const outcome = draft(replyTo(thread('A 6 month contract, inside IR35.'), contractor, { force: 'interest' }));
+
+    expect(outcome.kind).toBe('interest');
+    expect(outcome.text).not.toContain('Inside IR35');
+  });
+
+  it('works when there are no Unanswered Messages', () => {
+    const snapshot: ThreadSnapshot = {
+      recruiterName: 'Jordan Smith',
+      messages: [
+        { text: match, fromRecruiter: true },
+        { text: 'Thanks, I will think about it.', fromRecruiter: false },
+      ],
+    };
+
+    expect(draft(replyTo(snapshot, contractor, { force: 'clarification' })).kind).toBe('clarification');
+  });
+
+  it('works when the Thread has no job signals', () => {
+    expect(draft(replyTo(thread('Thanks for connecting!'), contractor, { force: 'decline' })).kind).toBe('decline');
+  });
+
+  it('still waits for setup', () => {
+    const outcome = replyTo(thread(match), { ...contractor, setupComplete: false }, { force: 'decline' });
+
+    expect(outcome).toEqual({ type: 'notice', notice: 'not-set-up' });
+  });
+});

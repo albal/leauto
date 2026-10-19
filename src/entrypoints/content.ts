@@ -10,7 +10,10 @@ export default defineContentScript({
   // LinkedIn is a single-page app, so the script runs site-wide and mounts only on /messaging/.
   matches: ['https://www.linkedin.com/*'],
   main() {
-    const bar: ButtonBar = createButtonBar({ onDraftReply: () => draftReply(bar) });
+    const bar: ButtonBar = createButtonBar({
+      onDraftReply: () => draftReply(bar),
+      onForce: (kind) => draftReply(bar, { force: kind }),
+    });
 
     // Watches only for where to mount the bar; Thread content is read on click (ADR-0002).
     const mount = () => {

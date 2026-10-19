@@ -64,3 +64,25 @@ test("the already-replied notice shows when the Candidate's message is the lates
   await expect(bar(page)).toContainText("You've already replied. There's nothing new to answer.");
   await expect(composeBox(page)).toHaveText('');
 });
+
+test('the Draft kind menu forces a Decline, a Clarification or an Expression of Interest', async ({
+  seedSettings,
+  openThread,
+}) => {
+  await seedSettings(CONFIGURED);
+  const page = await openThread('thread-already-replied');
+  const force = async (label: string) => {
+    await bar(page).getByRole('button', { name: 'Choose Draft kind' }).click();
+    await bar(page).getByRole('menuitem', { name: label }).click();
+  };
+
+  await force('Interested');
+  await expect(composeBox(page)).toContainText('full job specification');
+  await expect(bar(page).getByRole('menu')).toBeHidden();
+
+  await force('Clarify');
+  await expect(composeBox(page)).toContainText('Is the role fully remote, hybrid or on-site?');
+
+  await force('Decline');
+  await expect(composeBox(page)).toContainText("Unfortunately this one isn't a fit");
+});

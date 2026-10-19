@@ -28,7 +28,10 @@ export function compose(kind: DraftKind, parts: DraftParts, settings: Settings):
     preferredRate: preferredDayRate === null ? '' : dayRate(preferredDayRate, currency),
     recruiterFirstName: parts.recruiterName?.trim().split(/\s+/)[0] || 'there',
     criteria: criteriaSentence(settings),
-    mismatches: parts.mismatches.map((m) => `- ${describeMismatch(m, settings)}`).join('\n'),
+    // A Decline the Candidate forced may have no Mismatch to cite.
+    mismatches: parts.mismatches.length
+      ? parts.mismatches.map((m) => `- ${describeMismatch(m, settings)}`).join('\n')
+      : "- it isn't what I'm looking for right now",
     questions: parts.questions.map((q, i) => `${i + 1}. ${ask(q, settings)}`).join('\n'),
     signOff: settings.signOff.trim(),
   };
